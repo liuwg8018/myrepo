@@ -1,0 +1,340 @@
+<!—setupIP.hta-->
+<html>
+<head>
+ <title>设置你机器的IP地址</title>
+</head>
+<HTA:APPLICATION 
+     ID="objsetIP" 
+     APPLICATIONNAME="setIP"
+     SCROLL="no"
+     SINGLEINSTANCE="yes"
+     WINDOWSTATE="normal"
+>
+
+<style>
+BODY
+{
+   background-color: buttonface;
+   font-family: Helvetica;
+   font-size: 12pt;
+   margin-top: 14px;
+   margin-left: 14px;
+   margin-right: 14px;
+   margin-bottom: 14px;
+}
+
+
+.button
+{
+   font-family: Helvetica;
+   font-size: 8pt;
+   width: 35px;
+}
+
+textarea
+{
+   font-family: arial;
+   font-size: 12pt;
+   margin-left: 8px;
+}
+
+select
+{
+   font-family: arial;
+   font-size: 12pt;
+   width: 450px;
+   margin-left: 0px;
+}
+
+</style>
+
+<script type="text/javascript">
+// 获取 Windows 版本
+function GetSystemVersion()
+{
+ var os = GetObject("winmgmts:").InstancesOf("Win32_OperatingSystem");
+ for(var e = new Enumerator(os);  !e.atEnd(); e.moveNext())
+ {
+  var v = e.item().Version;
+  var ss = v.split('.');
+  //alert(ss[0] +ss[1]);
+  return ss[0] + ss[1];
+ }
+ return -1;
+}
+
+// 判断是否是 vista 或以上版本系统
+//if (GetSystemVersion() >= 60)
+//{
+ //var cmd = location.pathname;
+ //if (cmd.substring(cmd.length-4) != ".HTA") // 通过扩展名的大小写，来区分第几次运行 hta
+ //{
+  //var Shell = new ActiveXObject("Shell.Application");
+  // 以 runas 方式重新启动该 hta
+  //Shell.ShellExecute ("mshta.exe", "\"" + cmd.substring(0, cmd.length-4) + ".HTA\"", "", "runas", 1);
+  // 退出当前 hta
+  //window.close();
+  //exit(0);
+ //}
+//}
+
+function RunScript()
+{  
+   var strTmpName = "temp_script.bat";
+   var objShell = new ActiveXObject("Shell.Application");
+   if (GetSystemVersion() >= 60)
+   {
+	
+	objShell.ShellExecute("cmd.exe", "\" /k " + strTmpName + "\"","","runas",1);
+   }
+   else
+   {
+    objShell.ShellExecute("cmd.exe", "\" /k " + strTmpName + "\"","","",1);
+   }
+}
+
+</script>
+
+<script language="vbscript">
+
+Sub Window_Onload
+
+   '* resize parent window
+
+   self.ResizeTo 1,1
+   self.MoveTo 300,300
+   
+   '* create dialog window
+
+   'Set objDialogWindow = window.Open("about:blank","ProgressWindow","height=15,width=250,left=300,top=300,status=no,titlebar=no,toolbar=no,menubar=no,location=no,scrollbars=no") 
+   'objDialogWindow.Focus()
+   'objDialogWindow.ResizeTo 250,15
+   'objDialogWindow.document.body.style.fontFamily = "Helvetica"
+   'objDialogWindow.document.body.style.fontSize = "11pt"
+   'objDialogWindow.document.writeln "<html><body>获取机器IP地址及网络接口卡相关信息</body></html>"
+   'objDialogWindow.document.title = "Please wait."
+   'objDialogWindow.document.body.style.backgroundColor = "buttonface"
+   'objDialogWindow.document.body.style.borderStyle = "none"
+   'objDialogWindow.document.body.style.marginTop = 15
+ 
+ 
+   Const adVarChar = 200
+   Const MaxCharacters = 255
+   strComputer = "."
+
+   '获取系统IP
+   Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\cimv2")
+   Set colNicConfig = objWMIService.ExecQuery("SELECT * FROM " & _
+      "Win32_NetworkAdapterConfiguration WHERE IPEnabled = True")
+		For Each objNicConfig In colNicConfig
+			strHTML = "DNSHostName:" & objNicConfig.DNSHostName & "</br>"
+			'strHTML = "Network Adapter: " & objNicConfig.Index & "</br>"
+			strHTML = strHTML & "DHCPEnabled:" & objNicConfig.DHCPEnabled & "</br>"
+			strHTML = strHTML & "Description:" & objNicConfig.Description & "</br>"
+			strHTML = strHTML & "DHCPServer:" & objNicConfig.DHCPServer & "</br>"
+			strHTML = strHTML & "DNSDomain:" & objNicConfig.DNSDomain & "</br>"
+			strHTML = strHTML & "MACAddress:" & objNicConfig.MACAddress & "</br>"
+			strHTML = strHTML & "WINSPrimaryServer:" & objNicConfig.WINSPrimaryServer & "</br>"
+			If Not IsNull(objNicConfig.IPAddress) Then
+				For Each strIPAddress In objNicConfig.IPAddress
+					strHTML = strHTML & "  IP Address(es):" & strIPAddress
+				Next
+			End If
+		Next
+	strHTML = strHTML & "<select name=ClassesPulldown>"
+			  '"<option value=""PulldownMessage"">请选择要设置IP地址的连接"
+    Set colAdpConfig = objWMIService.ExecQuery("Select * from Win32_NetworkAdapter WHERE NetConnectionID is not null")  
+	For Each objAdpConfig in colAdpConfig
+		strHTML = strHTML & "<option value = " & chr(34) &_ 
+		          objAdpConfig.NetConnectionID & chr(34) &_
+				  ">" & objAdpConfig.NetConnectionID & "--" & objAdpConfig.ProductName
+	Next 
+    strHTML = strHTML & "</select>"	& "</br>"
+	strHTML = strHTML & "请输入资产编号：01-<select name=hostType style= ""width:100""><option value=""01"" selected= ""selected"">01(PC)</option><option value=""02"">02(MAC)</option></select>-<input name=hostNum size=4>" & "</br>"
+	strHTML = strHTML & "请选择Group:<select name=deptname style= ""width:180"">" &_
+			  "<option value=""deptname_PullDownMessage"">请选择所属的Group</option>" &_
+			  "<option value=""CPSG"">CPSG</option>" &_
+			  "<option value=""OMSG"">OMSG</option>" &_
+			  "<option value=""MCPG"">MCPG</option>" &_
+			  "<option value=""Operation"">Operation</option>" &_
+			  "<option value=""ATC"">ATC</option></select>" & "</br>"
+	wmi_classes.insertAdjacentHTML "beforeEnd", strHTML
+	'* the classes are enumerated, close the progress dialog
+	'* and resize the main window
+
+   'objDialogWindow.Close
+   self.Focus()
+   self.ResizeTo 800,600
+   self.MoveTo 200,200
+   
+   '* the user hasn't had a chance to select a class and generate
+   '* a script - so disable the run and save buttons because
+   '* they are not yet meaningful.
+   
+   run_button.disabled = True
+   save_button.disabled = True
+
+End Sub
+
+Function getIP(hostnum,deptname,hosttype)
+   Dim thirdIpNoBase(6),thirdIpNo(6),returnArr(3)
+   proIpNo = "172.17"
+   'thirdIpNoBase(1) = "115"
+   thirdIpNoBase(2) = "128" 'CPSG
+   thirdIpNoBase(3) = "192" 'OMSG & IAQG
+   thirdIpNoBase(4) = "160" 'MCPG
+   thirdIpNoBase(5) = "64" 'Operation
+   thirdIpNoBase(6) = "96" 'ATC
+   If hosttype = "01" Then 'PC
+      'thirdIpNo(1) = "115"
+	  thirdIpNo(2) = "128" 'CPSG
+      thirdIpNo(3) = "192" 'OMSG & IAQG
+      thirdIpNo(4) = "160" 'MCPG
+      thirdIpNo(5) = "64" 'Operation
+      thirdIpNo(6) = "96" 'ATC
+   End If
+   If hosttype = "02" Then 'MAC
+      'thirdIpNo(1) = "115"
+	  thirdIpNo(2) = "150" 'CPSG
+      thirdIpNo(3) = "214" 'OMSG & IAQG
+      thirdIpNo(4) = "182" 'MCPG
+      thirdIpNo(5) = "86" 'Operation
+      thirdIpNo(6) = "118" 'ATC
+   End If
+   proIP = proIpNo
+   netmask = "255.255.224.0"
+   Select case deptname
+			Case "CPSG"
+				thirdIp = thirdIpNo(2)
+				gateway_thirdIp = thirdIpNoBase(2)
+			Case "OMSG"
+				thirdIp = thirdIpNo(3)
+				gateway_thirdIp = thirdIpNoBase(3)
+			Case "MCPG"
+				thirdIp = thirdIpNo(4)
+				gateway_thirdIp = thirdIpNoBase(4)
+			Case "Operation"
+				thirdIp = thirdIpNo(5)
+				gateway_thirdIp = thirdIpNoBase(5)
+			Case "ATC"
+				thirdIp = thirdIpNo(6)
+				gateway_thirdIp = thirdIpNoBase(6)
+   End Select  
+   proNum = Int(hostnum / 200)
+   backNum = Int(hostnum) - proNum*200
+   gateway = proIP & "." & gateway_thirdIp & "." & "1"
+   
+   thirdIp = Int(thirdIp) + proNum
+   IP = proIP & "." & thirdIp & "." & backNum   
+   returnArr(1) = IP
+   returnArr(2) = gateway
+   returnArr(3) = netmask
+   getIP = returnArr
+
+End Function
+
+
+Sub SetScript
+
+   '* if the user happens to select the message instead of a class, just
+   '* disable the run and save buttons and exit the subroutine
+
+   If ClassesPulldown.Value = "PulldownMessage" Then
+      run_button.disabled = True
+      save_button.disabled = True
+      Exit Sub
+   End If
+   
+   ipAddressinfo = getIP(hostNum.value,deptname.value,hostType.value)
+   ipAddress = ipAddressinfo(1)
+   gateway = ipAddressinfo(2)
+   netmask = ipAddressinfo(3)
+   
+   dnsServer1 = "172.17.10.20"
+   dnsServer2 = "172.17.10.30"
+   winServer = "172.17.10.20"
+  
+   strHTML = "<textarea cols=100 rows=30>"
+   
+   strHTML = strHTML & "netsh interface ip set address " & chr(34) & ClassesPulldown.Value & chr(34) & " static " &_
+             ipAddress & " " & netmask & " " & gateway &" 1" & Chr(10)
+   strHTML = strHTML & "netsh interface ip set dns " & chr(34) & ClassesPulldown.Value & chr(34) & " static " &_
+			 dnsServer1 & chr(10)
+   strHTML = strHTML & "netsh interface ip add dns " & chr(34) & ClassesPulldown.Value & chr(34) & " " &_
+			 dnsServer2 & chr(10)
+   strHTML = strHTML & "netsh interface ip set wins " & chr(34) & ClassesPulldown.Value & chr(34) & " static " &_
+			 winServer & chr(10)
+   strHTML = strHTML & "</textarea>"
+   code.InnerHTML= strHTML
+
+   '* once the code is successfully composed and put into the textarea, ensure
+   '* that the run and save buttons are enabled
+   If hostType.value="01" Then
+      Set objFS = CreateObject("Scripting.FileSystemObject")
+      strTmpName = "temp_script.bat"
+      Set objScript = objFS.CreateTextFile(strTmpName)
+      objScript.Write code.InnerText
+      objScript.Close
+      run_button.disabled = False
+   End If
+   save_button.disabled = False
+
+End Sub
+
+Sub RunScript1
+
+   Set objFS = CreateObject("Scripting.FileSystemObject")
+   strTmpName = "temp_script.bat"
+   Set objScript = objFS.CreateTextFile(strTmpName)
+   objScript.Write code.InnerText
+   objScript.Close
+   Set objShell = CreateObject("WScript.Shell")
+   strCmdLine = "cmd /k "
+   strCmdLine = strCmdLine & chr(34) & strTmpName & chr(34)
+   objShell.Run(strCmdLine)
+
+End Sub
+
+Sub SaveScript
+
+   Set objFSO = CreateObject("Scripting.FileSystemObject")
+   strSaveFileName = InputBox("Please enter the complete path where you want to save your script (for example, C:\Scripts\MyScript.bat).")
+   If strSaveFileName = "" Then
+      Exit Sub
+   End If
+
+   Set objFile = objFSO.CreateTextFile(strSaveFileName)
+   objFile.WriteLine code.InnerText
+   objFile.Close
+
+End Sub
+
+Sub QuitScript
+
+   On Error Resume Next
+   Set objFSO = CreateObject("Scripting.FileSystemObject")
+   objFSO.DeleteFile "temp_script.bat"
+   Set objFSO = Nothing
+   self.Close()
+
+End Sub
+</script>
+<body>
+<span id="wmi_classes">&nbsp;</span>
+<input id=setbutton  class="button" type="button" value="Set"  name="set_button"  onClick="SetScript()">
+<input id=savebutton class="button" type="button" value="Save" name="save_button" onClick="SaveScript()">
+<input id=runbutton  class="button" type="button" value="Run"  name="run_button"  onClick="RunScript(code.InnerText)">
+<input id=quitbutton class="button" type="button" value="Quit" name="quit_button" onClick="QuitScript()">
+ <div ID=code_header></div>
+      <div id="code"></br>
+	     <table border="1">
+           <th></th><th>网段<th>第一个保留<th>间隔<th bgcolor="#FF8000">PC开始<th bgcolor="#FF8000">间隔<th bgcolor="#FF8000">PC结束<th>间隔<th bgcolor="#6FB7B7">MAC机器开始<th bgcolor="#6FB7B7">间隔<th bgcolor="#6FB7B7">MAC机器结束<th>间隔<th>DHCP开始<th>间隔<th>DHCP结束<th>最后保留</th>
+           <tr><td>Operation</td><td>172.17.64.0</td><td>64</td><td>1</td><td bgcolor="#FF8000">65</td><td bgcolor="#FF8000">15</td><td bgcolor="#FF8000">80</td><td>6</td><td bgcolor="#6FB7B7">86</td><td bgcolor="#6FB7B7">3</td><td bgcolor="#6FB7B7">89</td><td>1</td><td>90</td><td>3</td><td>93</td><td>95</td></tr>
+           <tr><td>ATC</td><td>172.17.96.0</td><td>96</td><td>1</td><td bgcolor="#FF8000">97</td><td bgcolor="#FF8000">15</td><td bgcolor="#FF8000">112</td><td>6</td><td bgcolor="#6FB7B7">118</td><td bgcolor="#6FB7B7">3</td><td bgcolor="#6FB7B7">121</td><td>1</td><td>122</td><td>3</td><td>125</td><td>127</td></tr>
+           <tr><td>CPSG</td><td>172.17.128.0</td><td>128</td><td>1</td><td bgcolor="#FF8000">129</td><td bgcolor="#FF8000">15</td><td bgcolor="#FF8000">144</td><td>6</td><td bgcolor="#6FB7B7">150</td><td bgcolor="#6FB7B7">3</td><td bgcolor="#6FB7B7">153</td><td>1</td><td>154</td><td>3</td><td>157</td><td>159</td></tr>
+           <tr><td>MCPG</td><td>172.17.160.0</td><td>160</td><td>1</td><td bgcolor="#FF8000">161</td><td bgcolor="#FF8000">15</td><td bgcolor="#FF8000">176</td><td>6</td><td bgcolor="#6FB7B7">182</td><td bgcolor="#6FB7B7">3</td><td bgcolor="#6FB7B7">185</td><td>1</td><td>186</td><td>3</td><td>189</td><td>191</td></tr>
+           <tr><td>OMSG</td><td>172.17.192.0</td><td>192</td><td>1</td><td bgcolor="#FF8000">193</td><td bgcolor="#FF8000">15</td><td bgcolor="#FF8000">208</td><td>6</td><td bgcolor="#6FB7B7">214</td><td bgcolor="#6FB7B7">3</td><td bgcolor="#6FB7B7">217</td><td>1</td><td>218</td><td>3</td><td>221</td><td>223</td></tr>
+         </table>　	　	　	　	　	　	　	　	　	　	　	　	　	　
+	  </div>
+</body>
+</html> 
